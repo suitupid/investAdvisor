@@ -8,7 +8,6 @@ from langchain_core.tools import tool
 from langchain_core.messages import HumanMessage, AIMessage, ToolMessage
 from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
 
-# ----------- Tool 정의 -----------
 @tool
 def get_stock_price(symbol: str) -> str:
     """주식 가격을 조회합니다."""
@@ -18,7 +17,6 @@ def get_stock_price(symbol: str) -> str:
         return f"{symbol} 주식 정보를 찾을 수 없습니다."
     return f"{symbol}: ${round(result['Close'].iloc[0], 2)}"
 
-# ----------- 모델 호출 함수 -----------
 def call_model(state: MessagesState):
     response = model.invoke(state["messages"])
     # 모델이 툴 호출이 없으면 루프 종료
@@ -26,7 +24,6 @@ def call_model(state: MessagesState):
         return {"messages": state["messages"] + [response], "next": END}
     return {"messages": state["messages"] + [response]}
 
-# ----------- 모델 설정 -----------
 model = ChatOllama(
     model='gpt-oss:20b',
     n_ctx=131072,
@@ -38,26 +35,60 @@ model = ChatOllama(
     callbacks=[StreamingStdOutCallbackHandler()]
 ).bind_tools([get_stock_price])
 
-# ----------- 그래프 구성 -----------
 tool_node = ToolNode([get_stock_price])
 workflow = StateGraph(MessagesState)
 
-# 노드 추가
 workflow.add_node("model", call_model)
 workflow.add_node("tools", tool_node)
 
-# 흐름 설정
 workflow.set_entry_point("model")
+
+workflow.add_conditional_edges(
+    "direct_answer",
+    should_continue,
+    ["tools", "force_final_answer", END]
+)
+
+def should_continue(state: ChatState) -> str:
+    """도구 호출 필요성을 판단하여 라우팅"""
+    messages = state.get("messages", [])
+    tool_call_count = state.get("tool_call_count", 0)
+    max_tool_calls = state.get("max_tool_calls", 3)
+
+    if not messages:
+        return END
+
+    if tool_call_count >= max_tool_calls:  # 도구 없이 바로 응답 생성 하도록 추가,,?
+        logger.info(f"[Router] 최대 도구 호출 횟수({max_tool_calls}) 도달, 종료")
+        return "force_final_answer"
+
+    last_message = messages[-1]
+    logger.info(f"[Router - should_continue] Last message type: {type(last_message).__name__}")
+
+    # AIMessage 객체이고 tool_calls가 있는지 확인
+    if isinstance(last_message, AIMessage):
+        tool_calls = getattr(last_message, 'tool_calls', None)
+        if tool_calls and len(tool_calls) > 0:
+            logger.info(f"[Router - should_continue]  🔧 Tool calls detected: {len(tool_calls)} tools")
+            for i, tool_call in enumerate(tool_calls):
+                name = tool_call.get('name', 'unknown')
+                args = tool_call.get('args', {})
+                logger.info(f"  → Tool {i+1}: {name}({args})")
+            return "tools"
+
+    logger.info("[Router - should_continue] No tool calls, ending")
+    return END
+
 workflow.add_edge("model", "tools")
 workflow.add_edge("tools", "model")
 
-# 그래프 컴파일
 app = workflow.compile()
 
-# ----------- 실행 부분 -----------
-if __name__ == "__main__":
+while True:
     user_input = input("🧑 사용자: ").strip()
     user_input = user_input.encode("utf-8", "surrogatepass").decode("utf-8", "ignore")
+    if user_input.lower() == 'bye':
+        break
 
     # 초기 메시지 생성
     result = app.invoke({"messages": [HumanMessage(content=user_input)]})
