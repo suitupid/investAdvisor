@@ -18,33 +18,14 @@ def get_stock_price(symbol: str) -> str:
     return f"{symbol}: ${round(result['Close'].iloc[0], 2)}"
 
 def answer(state: ChatState) -> ChatState:
+    response = model.invoke(state['messages'])
+    return {'messages': state['messages'] + [response]}
+
 
 def should_continue(state: ChatState) -> str:
-    """도구 호출 필요성을 판단하여 라우팅"""
-    messages = state.get("messages", [])
-
-    if not messages:
-        return END
-
-    if tool_call_count >= max_tool_calls:  # 도구 없이 바로 응답 생성 하도록 추가,,?
-        logger.info(f"[Router] 최대 도구 호출 횟수({max_tool_calls}) 도달, 종료")
-        return "force_final_answer"
-
-    last_message = messages[-1]
-    logger.info(f"[Router - should_continue] Last message type: {type(last_message).__name__}")
-
-    # AIMessage 객체이고 tool_calls가 있는지 확인
-    if isinstance(last_message, AIMessage):
-        tool_calls = getattr(last_message, 'tool_calls', None)
-        if tool_calls and len(tool_calls) > 0:
-            logger.info(f"[Router - should_continue]  🔧 Tool calls detected: {len(tool_calls)} tools")
-            for i, tool_call in enumerate(tool_calls):
-                name = tool_call.get('name', 'unknown')
-                args = tool_call.get('args', {})
-                logger.info(f"  → Tool {i+1}: {name}({args})")
-            return "tools"
-
-    logger.info("[Router - should_continue] No tool calls, ending")
+    last_message = state['messages'][-1]
+    if hasattr(last_message, 'tool_calls') and last_messages.tool_calls:
+        return 'tools'
     return END
 
 model = ChatOllama(
