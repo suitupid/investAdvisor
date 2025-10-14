@@ -1,12 +1,17 @@
 #!/usr/bin/env python3
 
 import yfinance as yf
-from langgraph.graph import StateGraph, ChatState, END
+from langgraph.graph import StateGraph, MessagesState, END
 from langgraph.prebuilt import ToolNode
 from langchain_ollama import ChatOllama
 from langchain_core.tools import tool
-from langchain_core.messages import HumanMessage, AIMessage, ToolMessage
+from langchain_core.messages import SystemMessage, HumanMessage, AIMessage, ToolMessage
 from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
+
+instruction = """
+사용자의 질문에 대해 직접적이고 유용한 답변을 제공하세요.
+간결하면서도 완전한 답변을 작성하세요.
+"""
 
 @tool
 def get_stock_price(symbol: str) -> str:
@@ -17,16 +22,17 @@ def get_stock_price(symbol: str) -> str:
         return f"{symbol} 주식 정보를 찾을 수 없습니다."
     return f"{symbol}: ${round(result['Close'].iloc[0], 2)}"
 
-def answer(state: ChatState) -> ChatState:
-    response = model.invoke(state['messages'])
-    return {'messages': state['messages'] + [response]}
+def answer(state: MessagesState) -> MessagesState:
+    response = model.invoke(state["messages"])
+    return {"messages": state["messages"] + [response]}
 
-
-def should_continue(state: ChatState) -> str:
+def call_tools(state: MessagesState):
     last_message = state['messages'][-1]
-    if hasattr(last_message, 'tool_calls') and last_messages.tool_calls:
+    if hasattr(last_message, 'tool_calls') and last_message.tool_calls:
         return 'tools'
     return END
+
+tool_node = ToolNode([get_stock_price])
 
 model = ChatOllama(
     model='gpt-oss:20b',
@@ -38,40 +44,19 @@ model = ChatOllama(
     keep_alive=0,
     callbacks=[StreamingStdOutCallbackHandler()]
 ).bind_tools([get_stock_price])
-
-tool_node = ToolNode([get_stock_price])
 workflow = StateGraph(MessagesState)
-
-workflow.add_node("model", call_model)
+workflow.add_node("model", answer)
 workflow.add_node("tools", tool_node)
-
 workflow.set_entry_point("model")
-
-workflow.add_conditional_edges(
-    "direct_answer",
-    should_continue,
-    ["tools", "force_final_answer", END]
-)
-
-
-workflow.add_edge("model", "tools")
+workflow.add_conditional_edges("model", call_tools, ["tools", END])
 workflow.add_edge("tools", "model")
-
 app = workflow.compile()
 
 while True:
-    user_input = input("🧑 사용자: ").strip()
+    user_input = input("🧑 Question: ").strip()
     user_input = user_input.encode("utf-8", "surrogatepass").decode("utf-8", "ignore")
     if user_input.lower() == 'bye':
         break
-
-    # 초기 메시지 생성
-    result = app.invoke({"messages": [HumanMessage(content=user_input)]})
-
-    # 결과 출력
-    print("\n🤖 모델 응답:")
-    for msg in result["messages"]:
-        if isinstance(msg, AIMessage):
-            print(msg.content)
-        elif isinstance(msg, ToolMessage):
-            print(f"[Tool 실행 결과] {msg.content}")
+    print("🤖 Response:")
+    app.invoke({"messages": [HumanMessage(content=user_input)]})
+    print()
