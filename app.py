@@ -22,18 +22,6 @@ def get_stock_price(symbol: str) -> str:
         return f"{symbol} 주식 정보를 찾을 수 없습니다."
     return f"{symbol}: ${round(result['Close'].iloc[0], 2)}"
 
-def answer(state: MessagesState) -> MessagesState:
-    response = model.invoke(state["messages"])
-    return {"messages": state["messages"] + [response]}
-
-def call_tools(state: MessagesState):
-    last_message = state['messages'][-1]
-    if hasattr(last_message, 'tool_calls') and last_message.tool_calls:
-        return 'tools'
-    return END
-
-tool_node = ToolNode([get_stock_price])
-
 model = ChatOllama(
     model='gpt-oss:20b',
     n_ctx=131072,
@@ -44,6 +32,19 @@ model = ChatOllama(
     keep_alive=0,
     callbacks=[StreamingStdOutCallbackHandler()]
 ).bind_tools([get_stock_price])
+
+def answer(state: MessagesState) -> MessagesState:
+    response = model.invoke(state["messages"])
+    return {"messages": [response]}
+
+def call_tools(state: MessagesState) -> str:
+    last_message = state['messages'][-1]
+    if hasattr(last_message, 'tool_calls') and last_message.tool_calls:
+        return 'tools'
+    return END
+
+tool_node = ToolNode([get_stock_price])
+
 workflow = StateGraph(MessagesState)
 workflow.add_node("model", answer)
 workflow.add_node("tools", tool_node)
@@ -52,11 +53,14 @@ workflow.add_conditional_edges("model", call_tools, ["tools", END])
 workflow.add_edge("tools", "model")
 app = workflow.compile()
 
+state = MessagesState({"messages": [SystemMessage(content=instruction)]})
 while True:
     user_input = input("🧑 Question: ").strip()
     user_input = user_input.encode("utf-8", "surrogatepass").decode("utf-8", "ignore")
     if user_input.lower() == 'bye':
         break
+    state["messages"].append(HumanMessage(content=user_input))
     print("🤖 Response:")
-    app.invoke({"messages": [HumanMessage(content=user_input)]})
+    state = app.invoke(state)
     print()
+
