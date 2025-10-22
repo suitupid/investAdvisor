@@ -27,8 +27,7 @@ def get_stock_price(
     그 중 종가(Close) 데이터만 반환합니다.
 
     ## Parameters
-    - **symbol**
-        - **symbol** (`str`): 조회할 종목의 티커(symbol)입니다.  
+    - **symbol** (`str`): 조회할 종목의 티커(symbol)입니다.  
       예: `"AAPL"` (애플), `"GOOGL"` (구글), `"TSLA"` (테슬라)
     - **period** (`str`): 조회할 기간을 지정합니다.  
       사용 가능한 값은 다음과 같습니다:
@@ -51,14 +50,17 @@ def get_stock_price(
 
     ### Example
     ```python
-    # 최근 1개월 동안의 애플(AAPL) 주가를 조회
-    get_stock_price(symbol="AAPL", period="1mo")
+    # 최근 1개월 동안의 애플(AAPL) 주가를 1주 간격으로 조회
+    get_stock_price(symbol="AAPL", period="1mo", interval="1wk")
     ```
     """
     return yf.Ticker(symbol).history(period=period, interval=interval)['Close']
 
 model = ChatOllama(
     model='gpt-oss:20b',
+    # model='llama4:16x17b',
+    # model='llama3.3:70b',
+    # model='qwen3:30b',
     n_ctx=131072,
     temperature=0.0,
     top_p=1.0,
@@ -69,26 +71,26 @@ model = ChatOllama(
 ).bind_tools([get_stock_price])
 
 def answer(state: MessagesState) -> MessagesState:
-    response = model.invoke(state["messages"])
-    return {"messages": [response]}
+    response = model.invoke(state['messages'])
+    return {'messages': [response]}
 
 def call_tools(state: MessagesState) -> str:
     last_message = state['messages'][-1]
-    if hasattr(last_message, 'tool_calls') and last_message.tool_calls:
+    if getattr(last_message, 'tool_calls', None):
         return 'tools'
     return END
 
 tool_node = ToolNode([get_stock_price])
 
 workflow = StateGraph(MessagesState)
-workflow.add_node("model", answer)
-workflow.add_node("tools", tool_node)
-workflow.set_entry_point("model")
-workflow.add_conditional_edges("model", call_tools, ["tools", END])
-workflow.add_edge("tools", "model")
+workflow.add_node('model', answer)
+workflow.add_node('tools', tool_node)
+workflow.set_entry_point('model')
+workflow.add_conditional_edges('model', call_tools, ['tools', END])
+workflow.add_edge('tools', 'model')
 app = workflow.compile()
 
-state = MessagesState({"messages": [SystemMessage(content=instruction)]})
+state = MessagesState({'messages': [SystemMessage(content=instruction)]})
 while True:
     user_input = input("🧑 Question: ").strip()
     user_input = user_input.encode("utf-8", "surrogatepass").decode("utf-8", "ignore")
@@ -98,4 +100,3 @@ while True:
     print("🤖 Response:")
     state = app.invoke(state)
     print()
-
