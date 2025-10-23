@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
 
+import atexit
+import subprocess
+
 import pandas as pd
 import yfinance as yf
 from langgraph.graph import StateGraph, MessagesState, END
@@ -8,6 +11,15 @@ from langchain_ollama import ChatOllama
 from langchain_core.tools import tool
 from langchain_core.messages import SystemMessage, HumanMessage, AIMessage, ToolMessage
 from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
+
+MODEL_NAME = 'gpt-oss:20b'
+# MODEL_NAME = 'llama4:16x17b',
+# MODEL_NAME = 'llama3.3:70b',
+# MODEL_NAME = 'qwen3:30b'
+
+def stop_model():
+    subprocess.run(['ollama', 'stop', MODEL_NAME], check=True)
+atexit.register(stop_model)
 
 instruction = """
 당신은 친절한 한국어 챗봇입니다.
@@ -57,16 +69,13 @@ def get_stock_price(
     return yf.Ticker(symbol).history(period=period, interval=interval)['Close']
 
 model = ChatOllama(
-    model='gpt-oss:20b',
-    # model='llama4:16x17b',
-    # model='llama3.3:70b',
-    # model='qwen3:30b',
+    model=MODEL_NAME,
     n_ctx=131072,
     temperature=0.0,
     top_p=1.0,
     num_gpu=-1,
     streaming=True,
-    keep_alive=0,
+    keep_alive=-1,
     callbacks=[StreamingStdOutCallbackHandler()]
 ).bind_tools([get_stock_price])
 
