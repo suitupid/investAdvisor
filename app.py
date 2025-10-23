@@ -80,11 +80,11 @@ def call_tools(state: MessagesState) -> str:
         return 'tools'
     return END
 
-tool_node = ToolNode([get_stock_price])
+use_tools = ToolNode([get_stock_price])
 
 workflow = StateGraph(MessagesState)
 workflow.add_node('model', answer)
-workflow.add_node('tools', tool_node)
+workflow.add_node('tools', use_tools)
 workflow.set_entry_point('model')
 workflow.add_conditional_edges('model', call_tools, ['tools', END])
 workflow.add_edge('tools', 'model')
