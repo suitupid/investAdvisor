@@ -13,19 +13,20 @@ from langchain_core.messages import SystemMessage, HumanMessage, AIMessage, Tool
 from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
 
 MODEL_NAME = 'gpt-oss:20b'
-# MODEL_NAME = 'llama4:16x17b',
-# MODEL_NAME = 'llama3.3:70b',
+# MODEL_NAME = 'PetrosStav/gemma3-tools:27b'
 # MODEL_NAME = 'qwen3:30b'
-
-def stop_model():
-    subprocess.run(['ollama', 'stop', MODEL_NAME], check=True)
-atexit.register(stop_model)
+# MODEL_NAME = 'llama3.3:70b'
+# MODEL_NAME = 'llama4:16x17b'
 
 instruction = """
 당신은 친절한 한국어 챗봇입니다.
 사용자의 질문에 대해 직접적이고 유용한 답변을 제공하세요.
 간결하면서도 완전한 답변을 작성하세요.
 """
+
+@atexit.register
+def stop_model():
+    subprocess.run(['ollama', 'stop', MODEL_NAME], check=True)
 
 @tool
 def get_stock_price(
