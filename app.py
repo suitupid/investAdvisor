@@ -102,8 +102,13 @@ app = workflow.compile()
 
 state = MessagesState({'messages': [SystemMessage(content=instruction)]})
 while True:
-    user_input = input("🧑 Question: ").strip()
-    user_input = user_input.encode("utf-8", "surrogatepass").decode("utf-8", "ignore")
+    while True:
+        try:
+            user_input = input("🧑 Question: ").strip()
+            user_input = user_input.encode("utf-8", "surrogatepass").decode("utf-8", "ignore")
+            break
+        except Exception as e:
+            print('🤖 Tell me again.')
     if user_input.lower() == 'bye':
         break
     state["messages"].append(HumanMessage(content=user_input))
