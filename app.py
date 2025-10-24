@@ -20,7 +20,7 @@ MODEL_NAME = 'gpt-oss:20b'
 
 instruction = """
 당신은 친절한 한국어 챗봇입니다.
-사용자의 질문에 대해 직접적이고 유용한 답변을 제공하세요.
+사용자의 질문에 대해 직접적이고 유용한 답변을 한국어로 제공하세요.
 간결하면서도 완전한 답변을 작성하세요.
 """
 
@@ -31,24 +31,27 @@ def stop_model():
 @tool
 def get_stock_price(
     symbol: str,
-    period: str,
+    start: str,
+    end: str,
     interval: str
 ) -> pd.Series:
     """
-    특정 종목(symbol)의 최근 주가 데이터를 조회하는 도구입니다.
-    이 함수는 Yahoo Finance 데이터를 이용해 지정한 기간(period) 동안의 주가 이력을 가져오며,
+    특정 종목(symbol)의 최근 주가, 환율 데이터를 조회하는 도구입니다.
+    이 함수는 Yahoo Finance 데이터를 이용해 일정한 간격(interval)으로
+    시작 날짜(start)와 마지막 날짜 다음날(end) 사이의 주가 이력을 가져오며,
     그 중 종가(Close) 데이터만 반환합니다.
 
     ## Parameters
     - **symbol** (`str`): 조회할 종목의 티커(symbol)입니다.  
-      예: `"AAPL"` (애플), `"GOOGL"` (구글), `"TSLA"` (테슬라)
-    - **period** (`str`): 조회할 기간을 지정합니다.  
-      사용 가능한 값은 다음과 같습니다:
-        - 일 단위: `"1d"`, `"5d"` 등
-        - 월 단위: `"1mo"`, `"3mo"`, `"6mo"` 등
-        - 년 단위: `"1y"`, `"2y"`, `"5y"`, `"10y"` 등
-        - 최대 전체 기간: `"max"`
-      예: `"1d"`는 최근 1일간의 데이터, `"3mo"`는 최근 3개월간의 데이터
+      예: `"AAPL"`(애플), `"GOOGL"`(구글), `"TSLA"`(테슬라), `"USDKRW=X"`(원달러환율)
+    - **start** (`str`): 조회할 시작 날짜입니다.
+      날짜 형식은 다음과 같습니다:
+        - `"%Y-%m-%d"`
+      예: `"2025-10-01"`
+    - **end** (`str`): 조회할 마지막 날짜의 다음날입니다.
+      날짜 형식은 다음과 같습니다:
+        - `"%Y-%m-%d"`
+      예: `"2025-10-20"`
     - **interval** (`str`): 데이터를 가져올 간격을 지정합니다. 기본값은 `"1d"`입니다.
       사용 가능한 값은 다음과 같습니다:
         - 분 단위: `"1m"`, `"3m"` 등
@@ -63,11 +66,11 @@ def get_stock_price(
 
     ### Example
     ```python
-    # 최근 1개월 동안의 애플(AAPL) 주가를 1주 간격으로 조회
-    get_stock_price(symbol="AAPL", period="1mo", interval="1wk")
+    # 최근 2025년 10월 1일부터 2025년 10월 20일까지 애플(AAPL) 주가를 1일 간격으로 조회
+    get_stock_price(symbol="AAPL", start="2025-10-01", end="2025-10-21", interval="1d")
     ```
     """
-    return yf.Ticker(symbol).history(period=period, interval=interval)['Close']
+    return yf.Ticker(symbol).history(start=start, end=end, interval=interval)['Close']
 
 model = ChatOllama(
     model=MODEL_NAME,
