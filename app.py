@@ -114,7 +114,8 @@ while True:
             print('🤖 Tell me again.')
     if user_input.lower() == 'bye':
         break
-    state["messages"].append(HumanMessage(content=user_input))
-    print("🤖 Response:")
+    print(f'🤖 Question: {user_input}')
+    state['messages'].append(HumanMessage(content=user_input))
+    print('🤖 Response:')
     state = app.invoke(state)
     print()
