@@ -51,7 +51,7 @@ def get_stock_prices(
 
     ## Parameters
     - **tickers** (`list[str]`): 조회할 종목들의 티커(ticker)입니다.  
-      예: `["AAPL", "GOOGL", "TSLA", "005930.KS"]`
+      예: `["AAPL", "GOOGL", "TSLA", "005930.KS", "USDKRW=X"]`
     - **start** (`str`): 조회할 시작 날짜입니다.
       날짜 형식은 다음과 같습니다:
         - `"%Y-%m-%d"`
