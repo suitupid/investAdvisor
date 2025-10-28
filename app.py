@@ -3,7 +3,6 @@
 import atexit
 import subprocess
 
-import pandas as pd
 import yfinance as yf
 from langgraph.graph import StateGraph, MessagesState, END
 from langgraph.prebuilt import ToolNode
@@ -34,9 +33,9 @@ def get_stock_price(
     start: str,
     end: str,
     interval: str
-) -> pd.Series:
+) -> str:
     """
-    특정 종목(symbol)의 최근 주가, 환율 데이터를 조회하는 도구입니다.
+    특정 종목의(symbol)의 최근 주가, 환율 데이터를 조회하는 도구입니다.
     이 함수는 Yahoo Finance 데이터를 이용해 일정한 간격(interval)으로
     시작 날짜(start)와 마지막 날짜 다음날(end) 사이의 주가 이력을 가져오며,
     그 중 종가(Close) 데이터만 반환합니다.
@@ -62,7 +61,7 @@ def get_stock_price(
       예: `"1d"`는 1일의 간격, `"3mo"`는 3개월의 간격
 
     ### Returns
-    - `pd.Series`: 지정한 기간 동안의 종가(Close) 시계열 데이터.
+    - `json`: 지정한 기간 동안의 종가(Close) 시계열 데이터.
 
     ### Example
     ```python
@@ -70,7 +69,10 @@ def get_stock_price(
     get_stock_price(symbol="AAPL", start="2025-10-01", end="2025-10-21", interval="1d")
     ```
     """
-    return yf.Ticker(symbol).history(start=start, end=end, interval=interval)['Close']
+    result = yf.Ticker(symbol).history(start=start, end=end, interval=interval)[['Close']]
+    result = result.reset_index()
+    result['Date'] = result['Date'].dt.strftime('%Y-%m-%d')
+    return result.to_json(orient='records')
 
 model = ChatOllama(
     model=MODEL_NAME,
@@ -114,7 +116,6 @@ while True:
             print('🤖 Tell me again.')
     if user_input.lower() == 'bye':
         break
-    print(f'🤖 Question: {user_input}')
     state['messages'].append(HumanMessage(content=user_input))
     print('🤖 Response:')
     state = app.invoke(state)
