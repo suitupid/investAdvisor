@@ -28,21 +28,22 @@ def stop_model():
     subprocess.run(['ollama', 'stop', MODEL_NAME], check=True)
 
 @tool
-def get_stock_price(
-    symbol: str,
+def get_stock_prices(
+    tickers: list[str],
     start: str,
     end: str,
-    interval: str
+    interval: str,
+    krw: bool = False
 ) -> str:
     """
-    특정 종목의(symbol)의 최근 주가, 환율 데이터를 조회하는 도구입니다.
+    특정 종목들(tickers)의 최근 주가, 환율 데이터를 조회하는 도구입니다.
     이 함수는 Yahoo Finance 데이터를 이용해 일정한 간격(interval)으로
     시작 날짜(start)와 마지막 날짜 다음날(end) 사이의 주가 이력을 가져오며,
     그 중 종가(Close) 데이터만 반환합니다.
 
     ## Parameters
-    - **symbol** (`str`): 조회할 종목의 티커(symbol)입니다.  
-      예: `"AAPL"`(애플), `"GOOGL"`(구글), `"TSLA"`(테슬라), `"USDKRW=X"`(원달러환율)
+    - **tickers** (`list[str]`): 조회할 종목들의 티커(ticker)입니다.  
+      예: `["AAPL", "GOOGL", "TSLA"]`
     - **start** (`str`): 조회할 시작 날짜입니다.
       날짜 형식은 다음과 같습니다:
         - `"%Y-%m-%d"`
@@ -59,19 +60,39 @@ def get_stock_price(
         - 주 단위: `"1wk"`, `"3wk"`, `"5wk"` 등
         - 월 단위: `"1mo"`, `"3mo"`, `"6mo"` 등
       예: `"1d"`는 1일의 간격, `"3mo"`는 3개월의 간격
+    - **krw** (`bool`): 원화 환산 여부입니다. 기본값은 `False`입니다.
+      사용 가능한 값은 다음과 같습니다:
+        - True: 원화 환산 적용
+        - False: 원화 환산 적용하지 않음
 
     ### Returns
     - `json`: 지정한 기간 동안의 종가(Close) 시계열 데이터.
 
     ### Example
     ```python
-    # 최근 2025년 10월 1일부터 2025년 10월 20일까지 애플(AAPL) 주가를 1일 간격으로 조회
-    get_stock_price(symbol="AAPL", start="2025-10-01", end="2025-10-21", interval="1d")
+    # 최근 2025년 10월 1일부터 2025년 10월 20일까지 애플(AAPL), 삼성전자의 주가를 1일 간격으로 조회
+    get_stock_prices(
+        tickers=["AAPL", "005930.KS"], start="2025-10-01", end="2025-10-21", interval="1d")
     ```
     """
-    result = yf.Ticker(symbol).history(start=start, end=end, interval=interval)[['Close']]
+    if krw:
+        tickers.append('USDKRW=X')
+    result = yf.download(
+        tickers=tickers,
+        start=start,
+        end=end,
+        interval=interval,
+        auto_adjust=True,
+        progress=False
+    )[['Close']]
     result = result.reset_index()
     result['Date'] = result['Date'].dt.strftime('%Y-%m-%d')
+    result.columns = [col[0] if col[0] == 'Date' else col[1] for col in result.columns]
+    if krw:
+        target_tickers = [ticker for ticker in result.columns if ticker not in ['Date', 'USDKRW=X']]
+        for ticker in target_tickers:
+            result[ticker] = result[ticker] * result['USDKRW=X']
+        result = result.drop(columns=['USDKRW=X'])
     return result.to_json(orient='records')
 
 model = ChatOllama(
@@ -83,7 +104,7 @@ model = ChatOllama(
     streaming=True,
     keep_alive=-1,
     callbacks=[StreamingStdOutCallbackHandler()]
-).bind_tools([get_stock_price])
+).bind_tools([get_stock_prices])
 
 def answer(state: MessagesState) -> MessagesState:
     response = model.invoke(state['messages'])
@@ -95,7 +116,7 @@ def call_tools(state: MessagesState) -> str:
         return 'tools'
     return END
 
-use_tools = ToolNode([get_stock_price])
+use_tools = ToolNode([get_stock_prices])
 
 workflow = StateGraph(MessagesState)
 workflow.add_node('model', answer)
