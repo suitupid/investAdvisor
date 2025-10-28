@@ -13,10 +13,9 @@ from langchain_core.messages import SystemMessage, HumanMessage, AIMessage, Tool
 from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
 
 MODEL_NAME = 'gpt-oss:20b'
-# MODEL_NAME = 'PetrosStav/gemma3-tools:27b'
 # MODEL_NAME = 'qwen3:30b'
-# MODEL_NAME = 'llama3.3:70b'
 # MODEL_NAME = 'llama4:16x17b'
+# MODEL_NAME = 'llama3.3:70b'
 
 instruction = """
 당신은 친절한 한국어 챗봇입니다.
