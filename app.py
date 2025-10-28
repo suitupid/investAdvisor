@@ -2,12 +2,13 @@
 
 import atexit
 import subprocess
+import datetime
 
 import yfinance as yf
 from langgraph.graph import StateGraph, MessagesState, END
+from langchain_core.tools import tool
 from langgraph.prebuilt import ToolNode
 from langchain_ollama import ChatOllama
-from langchain_core.tools import tool
 from langchain_core.messages import SystemMessage, HumanMessage, AIMessage, ToolMessage
 from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
 
@@ -28,6 +29,13 @@ def stop_model():
     subprocess.run(['ollama', 'stop', MODEL_NAME], check=True)
 
 @tool
+def get_today():
+    """
+    오늘 날짜와 현재 시간을 조회하는 도구입니다.
+    """
+    return datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+@tool
 def get_stock_prices(
     tickers: list[str],
     start: str,
@@ -43,7 +51,7 @@ def get_stock_prices(
 
     ## Parameters
     - **tickers** (`list[str]`): 조회할 종목들의 티커(ticker)입니다.  
-      예: `["AAPL", "GOOGL", "TSLA"]`
+      예: `["AAPL", "GOOGL", "TSLA", "005930.KS"]`
     - **start** (`str`): 조회할 시작 날짜입니다.
       날짜 형식은 다음과 같습니다:
         - `"%Y-%m-%d"`
@@ -104,7 +112,7 @@ model = ChatOllama(
     streaming=True,
     keep_alive=-1,
     callbacks=[StreamingStdOutCallbackHandler()]
-).bind_tools([get_stock_prices])
+).bind_tools([get_stock_prices, get_today])
 
 def answer(state: MessagesState) -> MessagesState:
     response = model.invoke(state['messages'])
@@ -116,7 +124,7 @@ def call_tools(state: MessagesState) -> str:
         return 'tools'
     return END
 
-use_tools = ToolNode([get_stock_prices])
+use_tools = ToolNode([get_stock_prices, get_today])
 
 workflow = StateGraph(MessagesState)
 workflow.add_node('model', answer)
