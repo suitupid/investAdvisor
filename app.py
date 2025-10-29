@@ -19,7 +19,7 @@ MODEL_NAME = 'gpt-oss:20b'
 
 instruction = """
 당신은 친절한 한국어 챗봇입니다.
-사용자의 질문에 대해 직접적이고 유용한 답변을 한국어로 제공하세요.
+사용자의 질문에 대해 직접적이고 유용한 답변을 제공하세요.
 간결하면서도 완전한 답변을 작성하세요.
 """
 
@@ -96,7 +96,11 @@ def get_stock_prices(
     result['Date'] = result['Date'].dt.strftime('%Y-%m-%d')
     result.columns = [col[0] if col[0] == 'Date' else col[1] for col in result.columns]
     if krw:
-        target_tickers = [ticker for ticker in result.columns if ticker not in ['Date', 'USDKRW=X']]
+        target_tickers = [
+            ticker
+            for ticker in result.columns
+            if ticker not in ['Date', 'USDKRW=X'] and ticker[-3:] != '.KS'
+        ]
         for ticker in target_tickers:
             result[ticker] = result[ticker] * result['USDKRW=X']
         result = result.drop(columns=['USDKRW=X'])
@@ -137,6 +141,7 @@ state = MessagesState({'messages': [SystemMessage(content=instruction)]})
 while True:
     while True:
         try:
+            # 엔비디아, 애플, 구글, 삼성전자, SK하이닉스의 최근 1년간의 주가를 한달 간격으로 조사해줘.
             user_input = input("🧑 Question: ").strip()
             user_input = user_input.encode("utf-8", "surrogatepass").decode("utf-8", "ignore")
             break
