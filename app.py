@@ -21,6 +21,8 @@ instruction = """
 당신은 친절한 한국어 챗봇입니다.
 사용자의 질문에 대해 직접적이고 유용한 답변을 제공하세요.
 간결하면서도 완전한 답변을 작성하세요.
+답변에 숫자가 포함되어있을 경우에는 가독성을 위해 소수점 구분과 자릿수 구분을 해주세요.
+소수점 구분은 '.'를 사용하고, 자릿수 구분은 ','로 해주세요.
 """
 
 @atexit.register
@@ -47,8 +49,6 @@ def get_stock_prices(
     이 함수는 Yahoo Finance 데이터를 이용해 일정한 간격(interval)으로
     시작 날짜(start)와 마지막 날짜 다음날(end) 사이의 주가 이력을 가져오며,
     그 중 종가(Close) 데이터만 반환합니다.
-    주가는 각 시장의 화폐로 조회됩니다.
-    예를 들어 한국 시장은 원화, 미국 시장은 달러로 조회됩니다.
 
     ## Parameters
     - **tickers** (`list[str]`): 조회할 종목들의 티커(ticker)입니다.  
@@ -142,7 +142,6 @@ state = MessagesState({'messages': [SystemMessage(content=instruction)]})
 while True:
     while True:
         try:
-            # 엔비디아, 애플, 구글, 삼성전자, SK하이닉스의 최근 1년간의 주가를 한달 간격으로 조사해줘.
             user_input = input("🧑 Question: ").strip()
             user_input = user_input.encode("utf-8", "surrogatepass").decode("utf-8", "ignore")
             break
