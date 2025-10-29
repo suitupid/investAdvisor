@@ -47,6 +47,8 @@ def get_stock_prices(
     이 함수는 Yahoo Finance 데이터를 이용해 일정한 간격(interval)으로
     시작 날짜(start)와 마지막 날짜 다음날(end) 사이의 주가 이력을 가져오며,
     그 중 종가(Close) 데이터만 반환합니다.
+    주가는 각 시장의 화폐로 조회됩니다.
+    예를 들어 한국 시장은 원화, 미국 시장은 달러로 조회됩니다.
 
     ## Parameters
     - **tickers** (`list[str]`): 조회할 종목들의 티커(ticker)입니다.  
@@ -78,8 +80,7 @@ def get_stock_prices(
     ### Example
     ```python
     # 최근 2025년 10월 1일부터 2025년 10월 20일까지 애플(AAPL), 삼성전자의 주가를 1일 간격으로 조회
-    get_stock_prices(
-        tickers=["AAPL", "005930.KS"], start="2025-10-01", end="2025-10-21", interval="1d")
+    get_stock_prices(tickers=["AAPL", "005930.KS"], start="2025-10-01", end="2025-10-21", interval="1d")
     ```
     """
     if krw:
