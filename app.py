@@ -99,32 +99,29 @@ def get_stock_prices(
     get_stock_prices(tickers=["AAPL", "005930.KS"], start="2025-10-01", end="2025-10-21", interval="1d")
     ```
     """
-    try:
-        if krw:
-            tickers.append('USDKRW=X')
-        result = yf.download(
-            tickers=tickers,
-            start=start,
-            end=end,
-            interval=interval,
-            auto_adjust=True,
-            progress=False
-        )[['Close']]
-        result = result.reset_index()
-        result['Date'] = result['Date'].dt.strftime('%Y-%m-%d')
-        result.columns = [col[0] if col[0] == 'Date' else col[1] for col in result.columns]
-        if krw:
-            target_tickers = [
-                ticker
-                for ticker in result.columns
-                if ticker not in ['Date', 'USDKRW=X'] and ticker[-3:] != '.KS'
-            ]
-            for ticker in target_tickers:
-                result[ticker] = result[ticker] * result['USDKRW=X']
-            result = result.drop(columns=['USDKRW=X'])
-        result = result.to_json(orient='records')
-    except Exception as e:
-        result = '해당 종목을 찾을 수 없습니다.'
+    if krw:
+        tickers.append('USDKRW=X')
+    result = yf.download(
+        tickers=tickers,
+        start=start,
+        end=end,
+        interval=interval,
+        auto_adjust=True,
+        progress=False
+    )[['Close']]
+    result = result.reset_index()
+    result['Date'] = result['Date'].dt.strftime('%Y-%m-%d')
+    result.columns = [col[0] if col[0] == 'Date' else col[1] for col in result.columns]
+    if krw:
+        target_tickers = [
+            ticker
+            for ticker in result.columns
+            if ticker not in ['Date', 'USDKRW=X'] and ticker[-3:] != '.KS'
+        ]
+        for ticker in target_tickers:
+            result[ticker] = result[ticker] * result['USDKRW=X']
+        result = result.drop(columns=['USDKRW=X'])
+    result = result.to_json(orient='records')
     return result
 
 model = ChatOllama(
