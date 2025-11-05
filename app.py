@@ -3,6 +3,7 @@
 import atexit
 import subprocess
 import datetime
+from httpx import ReadTimeout
 
 import yfinance as yf
 from langgraph.graph import StateGraph, MessagesState, END
@@ -29,16 +30,16 @@ instruction = """
 * 데이터 요약 금지
   - 도구에서 전달된 데이터를 요약하지 않고 출력하세요.
 * 숫자 표현 형식
-  - 소수점 구분('.')과 자릿수 구분(',')을 사용합니다.
+  - 소수점 구분('.')과 자릿수 구분(',')을 사용하세요.
   - 소수점은 2자리까지만 표시합니다.
-  - 달러화는 앞에 '$', 원화는 앞에 '₩'를 붙입니다.
+  - 달러화는 앞에 '$', 원화는 앞에 '₩'를 붙이세요.
     예: $204.12, ₩274,243.20
 * 화폐 표시 기준
-  - 기본적으로 조회되는 화폐 기준을 그대로 적용합니다.
+  - 기본적으로 조회되는 화폐 기준을 그대로 적용하세요.
     예: AAPL(애플): 달러, 005930.KS(삼성전자): 원
-  - 원화로 환전하라는 요청이 있으면 krw=True 옵션을 사용해 원화로 환산합니다.
+  - 원화로 환전하라는 요청이 있으면 krw=True 옵션을 사용해 원화로 환산하세요.
 [get_today] 도구 사용 시:
-* 반환되는 시간은 YYYY-MM-DD HH:MM:SS 형식으로 출력합니다.
+* 반환되는 시간은 YYYY-MM-DD HH:MM:SS 형식으로 출력하세요.
 """
 
 @atexit.register
@@ -95,7 +96,7 @@ def get_stock_prices(
 
     ### Example
     ```python
-    # 최근 2025년 10월 1일부터 2025년 10월 20일까지 애플(AAPL), 삼성전자의 주가를 1일 간격으로 조회
+    # 2025년 10월 1일부터 2025년 10월 20일까지 애플(AAPL), 삼성전자의 주가를 1일 간격으로 조회
     get_stock_prices(tickers=["AAPL", "005930.KS"], start="2025-10-01", end="2025-10-21", interval="1d")
     ```
     """
@@ -137,7 +138,13 @@ model = ChatOllama(
 ).bind_tools([get_stock_prices, get_today])
 
 def answer(state: MessagesState) -> MessagesState:
-    response = model.invoke(state['messages'])
+    while True:
+        try:
+            response = model.invoke(state['messages'])
+            break
+        except ReadTimeout:
+            print('Timeout: 다시 시도합니다.')
+            continue
     return {'messages': [response]}
 
 def call_tools(state: MessagesState) -> str:
