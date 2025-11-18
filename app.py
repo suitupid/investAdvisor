@@ -91,10 +91,10 @@ def get_stock_prices(
         - True: 원화 환산 적용
         - False: 원화 환산 적용하지 않음
 
-    ### Returns
+    ## Returns
     - `json`: 지정한 기간 동안의 종가(Close) 시계열 데이터.
 
-    ### Example
+    ## Example
     ```python
     # 2025년 10월 1일부터 2025년 10월 20일까지 애플(AAPL), 삼성전자의 주가를 1일 간격으로 조회
     get_stock_prices(tickers=["AAPL", "005930.KS"], start="2025-10-01", end="2025-10-21", interval="1d")
