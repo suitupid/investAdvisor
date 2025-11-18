@@ -133,7 +133,7 @@ model = ChatOllama(
     num_gpu=-1,
     streaming=True,
     keep_alive=-1,
-    client_kwargs={'timeout': 30},
+    client_kwargs={'timeout': 60},
     callbacks=[StreamingStdOutCallbackHandler()]
 ).bind_tools([get_stock_prices, get_today])
 
