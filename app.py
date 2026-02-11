@@ -11,9 +11,10 @@ from langchain_core.tools import tool
 from langgraph.prebuilt import ToolNode
 from langchain_ollama import ChatOllama
 from langchain_core.messages import SystemMessage, HumanMessage, AIMessage, ToolMessage
-from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
+from langchain_core.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
 
-MODEL_NAME = 'gpt-oss:20b'
+MODEL_NAME = 'glm-4.7-flash:q4_K_M'
+# MODEL_NAME = 'gpt-oss:20b'
 # MODEL_NAME = 'qwen3:30b'
 # MODEL_NAME = 'llama4:16x17b'
 # MODEL_NAME = 'llama3.3:70b'
