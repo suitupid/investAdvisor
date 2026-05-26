@@ -13,7 +13,7 @@ from langchain_ollama import ChatOllama
 from langchain_core.messages import SystemMessage, HumanMessage, AIMessage, ToolMessage
 from langchain_core.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
 
-MODEL_NAME = 'gemma4:26b'
+MODEL_NAME = 'gemma4:e2b'
 # MODEL_NAME = 'gpt-oss:20b'
 # MODEL_NAME = 'glm-4.7-flash:q4_K_M'
 # MODEL_NAME = 'qwen3:30b'
@@ -113,6 +113,7 @@ def get_stock_prices(
         progress=False
     )[['Close']]
     result = result.reset_index()
+    result = result.rename(columns={'index':'Date'})
     result['Date'] = result['Date'].dt.strftime('%Y-%m-%d')
     result.columns = [col[0] if col[0] == 'Date' else col[1] for col in result.columns]
     if krw:
