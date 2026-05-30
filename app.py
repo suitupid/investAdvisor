@@ -17,7 +17,8 @@ MODEL_NAME = 'gemma4:e2b'
 # MODEL_NAME = 'granite4.1:8b'
 
 # Question Example
-# 삼성, 애플, SK하이닉스의 이번달 주가를 일별로 조사해서 원화로 표시해줘
+# '삼성, 애플, SK하이닉스의 이번달 주가를 일별로 조사해서 원화로 표시해줘'라는 요청에 답변하기 위해 해야할 일을 순서대로 설명해줘.
+# 삼성, 애플, SK하이닉스의 이번달 주가를 일별로 조사해서 원화로 표시해줘.
 
 instruction = """
 당신은 친절한 한국어 챗봇입니다.
@@ -46,6 +47,13 @@ instruction = """
 @atexit.register
 def stop_model():
     subprocess.run(['ollama', 'stop', MODEL_NAME], check=True)
+
+@tool
+def get_today():
+    """
+    오늘 날짜와 현재 시간을 조회하는 도구입니다.
+    """
+    return datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
 @tool
 def get_stock_prices(
@@ -130,7 +138,7 @@ model = ChatOllama(
     keep_alive=-1,
     client_kwargs={'timeout': 60},
     callbacks=[StreamingStdOutCallbackHandler()]
-).bind_tools([get_stock_prices])
+).bind_tools([get_stock_prices, get_today])
 
 def answer(state: MessagesState) -> MessagesState:
     while True:
@@ -148,7 +156,7 @@ def call_tools(state: MessagesState) -> str:
         return 'tools'
     return END
 
-use_tools = ToolNode([get_stock_prices])
+use_tools = ToolNode([get_stock_prices, get_today])
 
 workflow = StateGraph(MessagesState)
 workflow.add_node('model', answer)
