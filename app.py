@@ -148,7 +148,7 @@ def call_tools(state: MessagesState) -> str:
         return 'tools'
     return END
 
-use_tools = ToolNode([get_stock_prices, get_today])
+use_tools = ToolNode([get_stock_prices])
 
 workflow = StateGraph(MessagesState)
 workflow.add_node('model', answer)
