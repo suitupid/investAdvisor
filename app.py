@@ -14,11 +14,10 @@ from langchain_core.messages import SystemMessage, HumanMessage, AIMessage, Tool
 from langchain_core.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
 
 MODEL_NAME = 'gemma4:e2b'
-# MODEL_NAME = 'gpt-oss:20b'
-# MODEL_NAME = 'glm-4.7-flash:q4_K_M'
-# MODEL_NAME = 'qwen3:30b'
-# MODEL_NAME = 'llama4:16x17b'
-# MODEL_NAME = 'llama3.3:70b'
+# MODEL_NAME = 'granite4.1:8b'
+
+# Question Example
+# 삼성, 애플, SK하이닉스의 이번달 주가를 일별로 조사해서 원화로 표시해줘
 
 instruction = """
 당신은 친절한 한국어 챗봇입니다.
@@ -47,13 +46,6 @@ instruction = """
 @atexit.register
 def stop_model():
     subprocess.run(['ollama', 'stop', MODEL_NAME], check=True)
-
-@tool
-def get_today():
-    """
-    오늘 날짜와 현재 시간을 조회하는 도구입니다.
-    """
-    return datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
 @tool
 def get_stock_prices(
@@ -138,7 +130,7 @@ model = ChatOllama(
     keep_alive=-1,
     client_kwargs={'timeout': 60},
     callbacks=[StreamingStdOutCallbackHandler()]
-).bind_tools([get_stock_prices, get_today])
+).bind_tools([get_stock_prices])
 
 def answer(state: MessagesState) -> MessagesState:
     while True:
