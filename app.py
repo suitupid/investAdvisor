@@ -6,6 +6,7 @@ import datetime
 from httpx import ReadTimeout
 
 import yfinance as yf
+from rapidfuzz import fuzz
 from langgraph.graph import StateGraph, MessagesState, END
 from langchain_core.tools import tool
 from langgraph.prebuilt import ToolNode
@@ -13,19 +14,18 @@ from langchain_ollama import ChatOllama
 from langchain_core.messages import SystemMessage, HumanMessage, AIMessage, ToolMessage
 from langchain_core.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
 
-MODEL_NAME = 'gemma4:e2b'
-# MODEL_NAME = 'granite4.1:8b'
+MODEL_NAME = 'gemma4:26b'
+# MODEL_NAME = 'granite4.1:30b'
 
-# Question Example
-# '삼성, 애플, SK하이닉스의 이번달 주가를 일별로 조사해서 원화로 표시해줘'라는 요청에 답변하기 위해 해야할 일을 순서대로 설명해줘.
-# 삼성, 애플, SK하이닉스의 이번달 주가를 일별로 조사해서 원화로 표시해줘.
-
-instruction = """
+SYSTEM_PROMPT = """
 당신은 친절한 한국어 챗봇입니다.
 사용자의 질문에 대해 직접적이고 유용한 답변을 제공하세요.
 간결하면서도 완전한 답변을 작성하세요.
+사용 가능한 도구가 있다면 반드시 사용하세요.
 
 ## 도구 사용 시 규칙:
+[get_today] 도구 사용 시:
+* 반환되는 시간은 YYYY-MM-DD HH:MM:SS 형식으로 출력하세요.
 [get_stock_prices] 도구 사용 시:
 * 출력 형식
   - JSON으로 된 데이터를 표 형식으로 바꾸어 출력하세요.
@@ -40,13 +40,27 @@ instruction = """
   - 기본적으로 조회되는 화폐 기준을 그대로 적용하세요.
     예: AAPL(애플): 달러, 005930.KS(삼성전자): 원
   - 원화로 환전하라는 요청이 있으면 krw=True 옵션을 사용해 원화로 환산하세요.
-[get_today] 도구 사용 시:
-* 반환되는 시간은 YYYY-MM-DD HH:MM:SS 형식으로 출력하세요.
 """
 
 @atexit.register
 def stop_model():
     subprocess.run(['ollama', 'stop', MODEL_NAME], check=True)
+
+def answer(state: MessagesState) -> MessagesState:
+    while True:
+        try:
+            response = model.invoke(state['messages'])
+            break
+        except ReadTimeout:
+            print('Timeout: 다시 시도합니다.')
+            continue
+    return {'messages': [response]}
+
+def call_tools(state: MessagesState) -> str:
+    last_message = state['messages'][-1]
+    if getattr(last_message, 'tool_calls', None):
+        return 'tools'
+    return END
 
 @tool
 def get_today():
@@ -138,25 +152,9 @@ model = ChatOllama(
     keep_alive=-1,
     client_kwargs={'timeout': 60},
     callbacks=[StreamingStdOutCallbackHandler()]
-).bind_tools([get_stock_prices, get_today])
+).bind_tools([get_today, get_stock_prices])
 
-def answer(state: MessagesState) -> MessagesState:
-    while True:
-        try:
-            response = model.invoke(state['messages'])
-            break
-        except ReadTimeout:
-            print('Timeout: 다시 시도합니다.')
-            continue
-    return {'messages': [response]}
-
-def call_tools(state: MessagesState) -> str:
-    last_message = state['messages'][-1]
-    if getattr(last_message, 'tool_calls', None):
-        return 'tools'
-    return END
-
-use_tools = ToolNode([get_stock_prices, get_today])
+use_tools = ToolNode([get_today, get_stock_prices])
 
 workflow = StateGraph(MessagesState)
 workflow.add_node('model', answer)
@@ -166,7 +164,7 @@ workflow.add_conditional_edges('model', call_tools, ['tools', END])
 workflow.add_edge('tools', 'model')
 app = workflow.compile()
 
-state = MessagesState({'messages': [SystemMessage(content=instruction)]})
+state = MessagesState({'messages': [SystemMessage(content=SYSTEM_PROMPT)]})
 while True:
     while True:
         try:
